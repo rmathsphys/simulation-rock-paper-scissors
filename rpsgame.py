@@ -4,25 +4,39 @@ import matplotlib.animation as anim
 
 
 class RPSGame():
-    def __init__(self, n_rock=10, n_paper=10, n_scissors=10, width=1):
+    def __init__(self, n_rock=9, n_paper=9, n_scissors=9, width=1):
         self.nr = n_rock
         self.np = n_paper
         self.ns = n_scissors
         self.nt = self.nr + self.np + self.ns
         self.w = width
+
+        self._id_to_label = ['Rock', 'Paper', 'Scissors']
         
         self.threshold = 0.015
-        self.hf = 0.0005
-        self.ha = 0.002
-        self.ht = 0.003
+        self.hf = 0.0003
+        self.ha = 0.0021
+        self.ht = 0.0031
         self.fq = 1.15
-        self.fc = '#f5fffa'
-        self.fr = '#002e63'
-        self.fp = '#ffa700'
-        self.fs = '#ae0c00'
+        self.fc = '#1e1e1e'
+        self.fr = '#0088aa'
+        self.fp = '#d4aa00'
+        self.fs = '#ff0066'
         self.frames = 1000
 
         self._re_init()
+
+
+    def play(self):
+        print('Running the simulation.')
+        self._run_sim(export=False)
+        print('Task completed.')
+
+    def export(self, fname):
+        print('Running the simulation.')
+        print(f'The output will be saved to {fname}')
+        self._run_sim(export=True, fname=fname)
+        print('Task completed.')
 
     def set_hf(self, val):
         self.hf = val
@@ -63,7 +77,7 @@ class RPSGame():
                 dist_f = np.sum((arr_f - self.pos[j])**2, axis=-1)
                 dist_f = np.where(dist_f == 0, np.max(dist_f)+1, dist_f)
                 rf = arr_f[np.argmin(dist_f)] - self.pos[j]
-                rf = rf / max(1e-12, np.sum(rf**2))
+                rf = rf / max(1e-18, np.sum(rf**2))
             else:
                 rf = 0
             
@@ -71,7 +85,7 @@ class RPSGame():
                 arr_a = self.pos[self.cat == ((self.cat[j]+1)%3)]
                 dist_a = np.sum((arr_a - self.pos[j])**2, axis=-1)
                 ra = arr_a[np.argmin(dist_a)] - self.pos[j]
-                ra = ra / max(1e-12, np.sum(ra**2))
+                ra = ra / max(1e-18, np.sum(ra**2))
             else:
                 ra = 0
             
@@ -79,15 +93,15 @@ class RPSGame():
                 arr_t = self.pos[self.cat == ((self.cat[j]+2)%3)]
                 dist_t = np.sum((arr_t - self.pos[j])**2, axis=-1)
                 rt = arr_t[np.argmin(dist_t)] - self.pos[j]
-                rt = rt / max(1e-12, np.sum(rt**2))
+                rt = rt / max(1e-18, np.sum(rt**2))
             else:
                 rt = 0
 
             r = (self.ht * rt) - (self.ha * ra) - (self.hf * rf)
             self._temp_pos[j] = self.pos[j] + r
 
-            self._temp_pos = np.where(self._temp_pos > self.w, self.w - self.threshold, self._temp_pos)
-            self._temp_pos = np.where(self._temp_pos < -self.w, self.threshold - self.w, self._temp_pos)
+            self._temp_pos = np.where(self._temp_pos > self.w, self.w - 0.25*self.threshold, self._temp_pos)
+            self._temp_pos = np.where(self._temp_pos < -self.w, 0.25*self.threshold - self.w, self._temp_pos)
 
         for j in range(self.nt):
             if np.any(self.cat == ((self.cat[j]+1)%3)):
@@ -102,23 +116,56 @@ class RPSGame():
 
         return self._temp_pos, self._temp_cat
 
+    def _display_scene(self):
+        ''' For debugging purposes only '''
+        wq = self.fq * self.w
+        ms = 50
+
+        fig, ax = plt.subplots(figsize=(4.5, 4.7), facecolor=self.fc, num='The Arena', layout='constrained')
+        ax.set(aspect=True, xlim=(-wq, wq), ylim=(-wq, wq))
+        ax.axis(False)
+
+        dt_r = self.pos[self.cat == 0]
+        dt_p = self.pos[self.cat == 1]
+        dt_s = self.pos[self.cat == 2]
+
+        _ = ax.scatter(dt_r[:,0], dt_r[:,1], s=ms, marker=r'$R$', c=self.fr)
+        _ = ax.scatter(dt_p[:,0], dt_p[:,1], s=ms, marker=r'$P$', c=self.fp)
+        _ = ax.scatter(dt_s[:,0], dt_s[:,1], s=ms, marker=r'$S$', c=self.fs)
+
+        msg = ''
+        for j in range(3):
+            msg += f'{self._id_to_label[j]}: {(self.cat == j).sum():>2}, '
+        msg = msg[:-2]
+        status = ax.text(0.5, 1, msg, ha='center', va='top', transform=ax.transAxes,
+            fontsize=10, fontweight='medium', color='#e6e6e6')
+        
+        plt.show()
+        self._re_init()
+
     def _run_sim(self, export=False, fname='output.mp4'):
         wq = self.fq * self.w
         ms = 50
 
-        fig, ax = plt.subplots(figsize=(4.5, 4.5), facecolor=self.fc, num='The Arena')
+        fig, ax = plt.subplots(figsize=(4.5, 4.7), facecolor=self.fc, num='The Arena', layout='constrained')
         ax.set(aspect=True, xlim=(-wq, wq), ylim=(-wq, wq))
         ax.axis(False)
 
         sc_r = ax.scatter([], [], s=ms, marker=r'$R$', c=self.fr)
         sc_p = ax.scatter([], [], s=ms, marker=r'$P$', c=self.fp)
         sc_s = ax.scatter([], [], s=ms, marker=r'$S$', c=self.fs)
-        # status = ax.text(0, self.w, 'Status', ha='center')
+
+        msg = ''
+        for j in range(3):
+            msg += f'{self._id_to_label[j]}: {(self.cat == j).sum()}, '
+        msg = msg[:-2]
+        status = ax.text(0.5, 1, msg, ha='center', va='top', transform=ax.transAxes,
+            fontsize=10, fontweight='medium', color='#e6e6e6')
         
         def updater(k):
             if len(np.unique(self.cat)) == 1:
-                # status.set(text=f'The winner is: {self.cat[0]}')
-                return sc_r, sc_p, sc_s#, status
+                status.set(text=f'The winner is: {self._id_to_label[int(self.cat[0])]}')
+                return sc_r, sc_p, sc_s, status
 
             self.pos, self.cat = self._step_sim()
             
@@ -130,24 +177,20 @@ class RPSGame():
             sc_p.set_offsets(dt_p)
             sc_s.set_offsets(dt_s)
 
-            return sc_r, sc_p, sc_s
+            msg = f''
+            for j in range(3):
+                msg += f'{self._id_to_label[j]}: {(self.cat == j).sum()}, '
+            msg = msg[:-2]
+            status.set(text=msg)
+
+            return sc_r, sc_p, sc_s, status
         
         if export:
-            ani = anim.FuncAnimation(fig, updater, frames=self.frames, interval=30, repeat=False, blit=True)
-            writer = anim.FFMpegWriter(fps=35)
+            ani = anim.FuncAnimation(fig, updater, frames=self.frames, interval=40, repeat=False, blit=False)
+            writer = anim.FFMpegWriter(fps=30)
             ani.save(f'{fname}', dpi=256, writer=writer, savefig_kwargs={'facecolor':self.fc})
         else:
-            ani = anim.FuncAnimation(fig, updater, frames=self.frames, interval=30, repeat=False, blit=True)
+            ani = anim.FuncAnimation(fig, updater, frames=self.frames, interval=40, repeat=False, blit=False)
+            plt.show()
 
-        plt.show()
-        self._re_init()
-
-    def play(self):
-        self._run_sim(export=False)
-
-    def export(self, fname):
-        print('Running the simulation.')
-        print(f'The output will be saved to {fname}')
-        self._run_sim(export=True, fname=fname)
-        print('Task completed.')
-        
+        self._re_init()        
