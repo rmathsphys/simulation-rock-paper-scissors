@@ -20,7 +20,7 @@ class RPSGame():
         self.fr = '#002e63'
         self.fp = '#ffa700'
         self.fs = '#ae0c00'
-        self.frame = 1000
+        self.frames = 1000
 
         self._re_init()
 
@@ -86,10 +86,8 @@ class RPSGame():
             r = (self.ht * rt) - (self.ha * ra) - (self.hf * rf)
             self._temp_pos[j] = self.pos[j] + r
 
-            if self._temp_pos[j,0] > self.w: self._temp_pos[j,0] = (self.w + self.threshold)
-            if self._temp_pos[j,0] < -self.w: self._temp_pos[j,0] = -(self.w + self.threshold)
-            if self._temp_pos[j,1] > self.w: self._temp_pos[j,1] = (self.w + self.threshold)
-            if self._temp_pos[j,1] < -self.w: self._temp_pos[j,1] = -(self.w + self.threshold)
+            self._temp_pos = np.where(self._temp_pos > self.w, self.w - self.threshold, self._temp_pos)
+            self._temp_pos = np.where(self._temp_pos < -self.w, self.threshold - self.w, self._temp_pos)
 
         for j in range(self.nt):
             if np.any(self.cat == ((self.cat[j]+1)%3)):
